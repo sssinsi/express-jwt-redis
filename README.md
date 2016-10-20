@@ -1,2 +1,2 @@
 # express-jwt-redis
-jwt pub sub by redis in express 
+This repo is jwt pub sub by redis in express 
