@@ -37,6 +37,7 @@ app.get('/', function (req, res) {
 
 //create token
 apiRoutes.get('/authenticate', function (req, res) {
+    //sample user
     var token = jwt.sign({user_id: 123}, jwtSecret, {
         expiresIn: '24h'
     });
