@@ -2,13 +2,23 @@ var express = require("express");
 var config = require('./config');
 var bodyParser = require('body-parser');
 var jwt = require('jsonwebtoken');
-//var client = require('redis').createClient(process.env.DB_PORT_6379_TCP_PORT,process.env.DB_PORT_6379_TCP_ADDR);
 var io = require('socket.io')(8000);
-var redis = require('socket.io-redis');
+var ioRedis = require('socket.io-redis');
 var ioJwt = require('socketio-jwt');
 
+var redisHost = process.env.DB_PORT_6379_TCP_ADDR;
+var redisPort = process.env.DB_PORT_6379_TCP_PORT;
+
+var redis = require('redis').createClient;
+//redis.createClient({host:redisHost,port:redisPort});
+var pub = redis( redisPort,redisHost);//master
+var sub = redis( redisPort,redisHost,{return_buffers:true});//slave
+
+
+
 //var ioe = require('socket.io-emitter')({host:process.env.DB_PORT_6379_TCP_ADDR, port:process.env.DB_PORT_6379_TCP_PORT});
-io.adapter(redis({host:process.env.DB_PORT_6379_TCP_ADDR, port:process.env.DB_PORT_6379_TCP_PORT}));
+//io.adapter(ioRedis({host:redisHost, port:redisPort}));
+io.adapter(ioRedis({pubClient:pub,subClient:sub}));
 
 var app = express();
 app.set('port', 8888);
@@ -52,14 +62,24 @@ io.sockets
         timeout: 15000 //15 seconds to send the authentication message
     }))
     .on('authenticated', function (socket) {
-        console.log('hello!', socket.decoded_token);
+        console.log('hello!', socket.decoded_token.user_id);
+
+        sub.on("subscribe",function(channel,count){
+            console.log('subscribe message');
+            console.log(channel);
+        });
+
+        sub.subscribe('channel1');
+
+        pub.publish(socket.decoded_token.user_id + '.news.sample','channel custom publish message.');
 
         socket.emit('greeting', {message: 'Hi!'}, function (data) {
-            console.log('result: ' + data);
         });
 
         socket.on('msg', function (data) {
-            io.sockets.emit('receive', data);
+            socket.broadcast.emit('receive',data);
+//            io.sockets.emit('receive', data);
+            pub.publish('channel1','publish message')
             console.log('receive:' + data);
         });
         //ioe.emit('broadcast','this is broadcasting');
