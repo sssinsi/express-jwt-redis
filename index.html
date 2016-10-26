@@ -17,7 +17,7 @@
 
     $(function(){
         var token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxMjMsImlhdCI6MTQ3NzQ0NjQ3MCwiZXhwIjoxNDc3NTMyODcwfQ.HfojOy1A7DXPo_6L6kVijXCfMc5MtrOAtkx55qjFEsU';
-        var socket = io('http://localhost:9000'/*,{'query':'token=' + token}*/);
+        var socket = io('http://localhost:9000');
 
         socket
                 .emit('authenticate', {token: token})//send jwt
