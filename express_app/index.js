@@ -5,7 +5,9 @@ var jwt = require('jsonwebtoken');
 //var client = require('redis').createClient(process.env.DB_PORT_6379_TCP_PORT,process.env.DB_PORT_6379_TCP_ADDR);
 var io = require('socket.io')(8000);
 var redis = require('socket.io-redis');
-var ioe = require('socket.io-emitter')({host:process.env.DB_PORT_6379_TCP_ADDR, port:process.env.DB_PORT_6379_TCP_PORT});
+var ioJwt = require('socketio-jwt');
+
+//var ioe = require('socket.io-emitter')({host:process.env.DB_PORT_6379_TCP_ADDR, port:process.env.DB_PORT_6379_TCP_PORT});
 io.adapter(redis({host:process.env.DB_PORT_6379_TCP_ADDR, port:process.env.DB_PORT_6379_TCP_PORT}));
 
 var app = express();
@@ -44,23 +46,30 @@ apiRoutes.get('/authenticate', function (req, res) {
     });
 });
 
-io.sockets.on('connection', function(socket) {
-    socket.emit('greeting',{message:'Hi!'},function(data){
-        console.log('result: ' + data);
-    });
+io.sockets
+    .on('connection', ioJwt.authorize({
+        secret: jwtSecret,
+        timeout: 15000 //15 seconds to send the authentication message
+    }))
+    .on('authenticated', function (socket) {
+        console.log('hello!', socket.decoded_token);
 
-    socket.on('msg', function(data){
-        io.sockets.emit('receive',data);
-        console.log('receive:'+data);
-    });
-    //ioe.emit('broadcast','this is broadcasting');
-    //
-    //socket.on('msg', function(msg){
-    //    console.log('message : ' + msg);
-    //});
-    //socket.on('message', function(data){
-    //    socket.broadcast.emit('message', data);
-    //});
+        socket.emit('greeting', {message: 'Hi!'}, function (data) {
+            console.log('result: ' + data);
+        });
+
+        socket.on('msg', function (data) {
+            io.sockets.emit('receive', data);
+            console.log('receive:' + data);
+        });
+        //ioe.emit('broadcast','this is broadcasting');
+        //
+        //socket.on('msg', function(msg){
+        //    console.log('message : ' + msg);
+        //});
+        //socket.on('message', function(data){
+        //    socket.broadcast.emit('message', data);
+        //});
 });
 
 //Authentification Filter

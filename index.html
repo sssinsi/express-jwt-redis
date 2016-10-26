@@ -16,11 +16,22 @@
 <script>
 
     $(function(){
-        var socket = io('http://localhost:9000');
+        var token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxMjMsImlhdCI6MTQ3NzQ0NjQ3MCwiZXhwIjoxNDc3NTMyODcwfQ.HfojOy1A7DXPo_6L6kVijXCfMc5MtrOAtkx55qjFEsU';
+        var socket = io('http://localhost:9000'/*,{'query':'token=' + token}*/);
+
+        socket
+                .emit('authenticate', {token: token})//send jwt
+                .on('authenticated', function () {
+                    $('#messages').append('<li>authenticated!!!</li>');
+                })
+                .on('unauthorized', function (msg) {
+                    console.log("Unauthorized:" + JSON.stringify(msg.data));
+                    $('#r').text(msg.data.message);
+                    throw new Error(msg.data.type);
+                });
+
         socket.on('greeting', function(data,fn){
             $('#hi').text(data.message);
-//            var answer = confirm(data.message);
-//            fn(answer);
         });
 
         socket.on('broadcast',function(data,fn){
@@ -34,7 +45,7 @@
         });
 
         socket.on('receive', function(data){
-            console.log(data);
+            $('#messages').append('<li>'+data+'</li>');
             $('#r').text(data);
         });
     });
