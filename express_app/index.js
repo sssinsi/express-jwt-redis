@@ -2,15 +2,11 @@ var express = require("express");
 var config = require('./config');
 var bodyParser = require('body-parser');
 var jwt = require('jsonwebtoken');
-var client = require('redis').createClient(process.env.DB_PORT_6379_TCP_PORT,process.env.DB_PORT_6379_TCP_ADDR);
-//var NRP = require('node-redis-pubsub');
-//
-//var config = {
-//    port:process.env.DB_PORT_6379_TCP_PORT,
-//    host:process.env.DB_PORT_6379_TCP_ADDR
-//}
-
-var nrp = new NRP(config);
+//var client = require('redis').createClient(process.env.DB_PORT_6379_TCP_PORT,process.env.DB_PORT_6379_TCP_ADDR);
+var io = require('socket.io')(8000);
+var redis = require('socket.io-redis');
+var ioe = require('socket.io-emitter')({host:process.env.DB_PORT_6379_TCP_ADDR, port:process.env.DB_PORT_6379_TCP_PORT});
+io.adapter(redis({host:process.env.DB_PORT_6379_TCP_ADDR, port:process.env.DB_PORT_6379_TCP_PORT}));
 
 var app = express();
 app.set('port', 8888);
@@ -48,6 +44,25 @@ apiRoutes.get('/authenticate', function (req, res) {
     });
 });
 
+io.sockets.on('connection', function(socket) {
+    socket.emit('greeting',{message:'Hi!'},function(data){
+        console.log('result: ' + data);
+    });
+
+    socket.on('msg', function(data){
+        io.sockets.emit('receive',data);
+        console.log('receive:'+data);
+    });
+    //ioe.emit('broadcast','this is broadcasting');
+    //
+    //socket.on('msg', function(msg){
+    //    console.log('message : ' + msg);
+    //});
+    //socket.on('message', function(data){
+    //    socket.broadcast.emit('message', data);
+    //});
+});
+
 //Authentification Filter
 apiRoutes.use(function (req, res, next) {
     // get token from body:token or query:token of Http Header:x-access-token
@@ -74,26 +89,28 @@ apiRoutes.use(function (req, res, next) {
     });
 });
 
+
+
 //secure api
 apiRoutes.get('/check', function (req, res) {
     res.send(req.decoded);
 });
 
 ////get user notify
-apiRoutes.get('/notify', function(req,res){
-    var key = 'user.' + req.decoded.user_id;
-    var value = 'test message';
-    client.set(key,value);
-
-    client.get(key,function(err, val){
-        if(err){
-            return res.json({
-                message: 'Invalid token.'
-            });
-        }
-
-        return res.send(val);
-    });
-});
+//apiRoutes.get('/notify', function(req,res){
+//    var key = 'user.' + req.decoded.user_id;
+//    var value = 'test message';
+//    client.set(key,value);
+//
+//    client.get(key,function(err, val){
+//        if(err){
+//            return res.json({
+//                message: 'Invalid token.'
+//            });
+//        }
+//
+//        return res.send(val);
+//    });
+//});
 
 
