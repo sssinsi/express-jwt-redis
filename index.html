@@ -5,7 +5,7 @@
 
 </head>
 <body>
-<span id="hi"></span>
+<ul id="hi"></ul>
 <span id="r"></span>
 <ul id="messages"></ul>
 <form action="">
@@ -17,7 +17,7 @@
 
     $(function(){
         var token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxMjMsImlhdCI6MTQ3NzQ0NjQ3MCwiZXhwIjoxNDc3NTMyODcwfQ.HfojOy1A7DXPo_6L6kVijXCfMc5MtrOAtkx55qjFEsU';
-        var socket = io('http://localhost:9000');
+        var socket = io('http://localhost:9000/chat');
 
         socket
                 .emit('authenticate', {token: token})//send jwt
@@ -31,7 +31,7 @@
                 });
 
         socket.on('greeting', function(data,fn){
-            $('#hi').text(data.message);
+            $('#hi').append('<li>' + data.message + '</li>');
         });
 
         socket.on('broadcast',function(data,fn){
@@ -47,6 +47,10 @@
         socket.on('receive', function(data){
             $('#messages').append('<li>'+data+'</li>');
             $('#r').text(data);
+        });
+
+        socket.on('my_subscribe',function(data){
+           console.log(data);
         });
     });
 

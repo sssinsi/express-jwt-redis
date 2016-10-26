@@ -56,7 +56,10 @@ apiRoutes.get('/authenticate', function (req, res) {
     });
 });
 
-io.sockets
+var chatNsp = io.of('/chat');
+var notifyNsp = io.of('/notify');
+
+chatNsp
     .on('connection', ioJwt.authorize({
         secret: jwtSecret,
         timeout: 15000 //15 seconds to send the authentication message
@@ -64,9 +67,20 @@ io.sockets
     .on('authenticated', function (socket) {
         console.log('hello!', socket.decoded_token.user_id);
 
+        var roomName = 'some_room';
+        socket.join(roomName);
+        socket.on('disconnect',function(){
+            chatNsp.to(roomName).emit('receive', 'user disconnected!');
+        });
+
         sub.on("subscribe",function(channel,count){
-            console.log('subscribe message');
-            console.log(channel);
+            //console.log('subscribed!!!');
+            console.log("Subscribed to " + channel + ". Now subscribed to " + count + " channel(s).");
+            //io.sockets.emit('my_subscribe',count);
+        });
+
+        sub.on('message',function(channel, message){
+            console.log("Message from channel " + channel + ": " + message);
         });
 
         sub.subscribe('channel1');
@@ -77,7 +91,7 @@ io.sockets
         });
 
         socket.on('msg', function (data) {
-            socket.broadcast.emit('receive',data);
+            socket.to(roomName).emit('receive',data);
 //            io.sockets.emit('receive', data);
             pub.publish('channel1','publish message')
             console.log('receive:' + data);
