@@ -79,7 +79,7 @@ chatNsp
 
         var roomName = 'some_room';
         socket.join(roomName);
-        var channelName = 'namespace:' +chatNsp.name + ':room:'+ roomName + ':count:user_' + socket.decoded_token.user_id;
+        var channelName = chatNsp.name + roomName + ':user_' + socket.decoded_token.user_id;
         sub.subscribe(channelName);
 
         socket.on('disconnect',function(){

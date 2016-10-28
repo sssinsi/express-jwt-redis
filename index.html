@@ -72,7 +72,7 @@
            console.log(data);
         });
 
-        socket.on('namespace:/chat:room:some_room:count:user_123',function(data){
+        socket.on('/chat:some_room:user_123',function(data){
             $('#n').append('<li>'+data+'</li>');
         });
 
