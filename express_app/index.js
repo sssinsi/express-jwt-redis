@@ -2,13 +2,23 @@ var express = require("express");
 var config = require('./config');
 var bodyParser = require('body-parser');
 var jwt = require('jsonwebtoken');
-//var client = require('redis').createClient(process.env.DB_PORT_6379_TCP_PORT,process.env.DB_PORT_6379_TCP_ADDR);
 var io = require('socket.io')(8000);
-var redis = require('socket.io-redis');
+var ioRedis = require('socket.io-redis');
 var ioJwt = require('socketio-jwt');
 
+var redisHost = process.env.DB_PORT_6379_TCP_ADDR;
+var redisPort = process.env.DB_PORT_6379_TCP_PORT;
+
+var redis = require('redis');
+//redis.createClient({host:redisHost,port:redisPort});
+var pub = redis.createClient( redisPort,redisHost);//master
+var sub = redis.createClient( redisPort,redisHost,{return_buffers:true});//slave
+
+
+
 //var ioe = require('socket.io-emitter')({host:process.env.DB_PORT_6379_TCP_ADDR, port:process.env.DB_PORT_6379_TCP_PORT});
-io.adapter(redis({host:process.env.DB_PORT_6379_TCP_ADDR, port:process.env.DB_PORT_6379_TCP_PORT}));
+//io.adapter(ioRedis({host:redisHost, port:redisPort}));
+io.adapter(ioRedis({pubClient:pub,subClient:sub}));
 
 var app = express();
 app.set('port', 8888);
@@ -36,7 +46,12 @@ app.get('/', function (req, res) {
 //create token
 apiRoutes.get('/authenticate', function (req, res) {
     //sample user
-    var token = jwt.sign({user_id: 123}, jwtSecret, {
+    var now = new Date();
+    var user_name = "user123" + now.getFullYear() + "/" + (now.getMonth() + 1) +
+        "/" + now.getDate() + " " + now.getHours() + ":" +
+        now.getMinutes() + ":" + now.getSeconds();
+
+    var token = jwt.sign({user_id: 123,user_name: user_name}, jwtSecret, {
         expiresIn: '24h'
     });
 
@@ -46,30 +61,54 @@ apiRoutes.get('/authenticate', function (req, res) {
     });
 });
 
-io.sockets
+var chatNsp = io.of('/chat');
+var notifyNsp = io.of('/notify');
+
+chatNsp
     .on('connection', ioJwt.authorize({
         secret: jwtSecret,
         timeout: 15000 //15 seconds to send the authentication message
     }))
     .on('authenticated', function (socket) {
-        console.log('hello!', socket.decoded_token);
+        var id = socket.id;//投稿者(接続者)のid
+        var myName = socket.decoded_token.user_name;
+        var personalMessage = "あなたは、"+myName+"さんとして入室しました。";
+        chatNsp.to(id).emit('server_to_client', {value : personalMessage});
 
-        socket.emit('greeting', {message: 'Hi!'}, function (data) {
-            console.log('result: ' + data);
+        var roomName = 'some_room';
+        socket.join(roomName);
+
+        var channelName = chatNsp.name +':'+ roomName + ':user_' + socket.decoded_token.user_id;
+        sub.subscribe(channelName);
+
+        socket.on('disconnect',function(){
+            socket.to(roomName).broadcast.emit('receive', myName+'さんがログアウトしました。');
+        });
+
+        //send message except self
+        socket.to(roomName).broadcast.emit('broadcast_message',myName+'さんがログインしました!!!!');
+
+        //send message to all (include self)
+        //socket.emit('greeting', {message: 'Hi!'}, function (data) {
+        //});
+
+        //sub.on("subscribe",function(channel,count){
+        //    console.log("Subscribed to " + channel + ". Now subscribed to " + count + " channel(s).");
+        //});
+
+        sub.on('message',function(channel, message){
+            if (channel == channelName) {
+                var text = String.fromCharCode.apply("", new Uint16Array(message));
+                //socket.emit('my_notify', text);//createClientを別にしたら無限ループにならなかった...?
+                chatNsp.to(id).emit('my_notify',true);
+            }
+
         });
 
         socket.on('msg', function (data) {
-            io.sockets.emit('receive', data);
-            console.log('receive:' + data);
+            pub.publish(channelName,data);
+            //chatNsp.to(roomName).emit('receive', data);
         });
-        //ioe.emit('broadcast','this is broadcasting');
-        //
-        //socket.on('msg', function(msg){
-        //    console.log('message : ' + msg);
-        //});
-        //socket.on('message', function(data){
-        //    socket.broadcast.emit('message', data);
-        //});
 });
 
 //Authentification Filter
