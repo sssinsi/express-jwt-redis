@@ -5,84 +5,31 @@
 
 </head>
 <body>
-<ul id="myName"></ul>
-<ul id="hi"></ul>
 <ul id="n"></ul>
-<ul id="bc"></ul>
 <span id="r"></span>
-<ul id="messages"></ul>
 
-<!--<form id="name_form" action="">-->
-    <!--名前を設定してください:-->
-    <!--<input id="name" autocomplete="off" /><button>Send</button>-->
-<!--</form>-->
-
-
-<form id="message_form" action="">
-    コメントを入力してください:
-    <input id="m" autocomplete="off" /><button>Send</button>
-</form>
 <script src="https://cdn.socket.io/socket.io-1.2.0.js"></script>
 <script src="http://code.jquery.com/jquery-1.11.1.js"></script>
 <script>
 
     $(function(){
         var token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxMjMsInVzZXJfbmFtZSI6InVzZXIxMjMyMDE2LzEwLzI3IDEyOjQ5OjUwIiwiaWF0IjoxNDc3NTcyNTkwLCJleHAiOjE0Nzc2NTg5OTB9.3nrbPhon7wdfDU7Np4YMWY1QiETudAajlO7MS6Owyko';
-        var socket = io('http://localhost:9000/chat');
+        var socket = io('http://localhost:9000/notify');
 
         socket
                 .emit('authenticate', {token: token})//send jwt
                 .on('authenticated', function () {
-                    $('#' +
-                            'messages').append('<li>authenticated!!!</li>');
+                    $('#messages').append('<li>authenticated!!!</li>');
                 })
                 .on('unauthorized', function (msg) {
-                    console.log("Unauthorized:" + JSON.stringify(msg.data));
                     $('#r').text(msg.data.message);
-                    throw new Error(msg.data.type);
                 });
-
-        socket.on('greeting', function(data/*,fn*/){
-            $('#hi').append('<li>' + data.message + '</li>');
-        });
-
-        socket.on('broadcast_message',function(data){
-            $('#bc').text(data);
-        });
-
-        $('#message_form').submit(function(){
-            socket.emit('msg', $('#m').val());
-            $('#m').val('');
-            return false;
-        });
-
-//        $('#name_form').submit(function(){
-//            socket.emit('set_name', $('#name').val());
-//            $('#name').val('');
-//            return false;
-//        });
-
-        socket.on('receive', function(data){
-            console.log(data);
-            $('#messages').append('<li>'+data+'</li>');
-            $('#r').text(data);
-        });
-
-        socket.on('my_subscribe',function(data){
-           console.log(data);
-        });
 
         socket.on('my_notify',function(data){
             var d = JSON.parse(data);
-            console.log(d);
-
             $('#n').append('<li>'+d+'</li>');
         });
 
-        socket.on('server_to_client',function(data){
-            console.log(data);
-            $('#myName').append('<li>'+data.value+'</li>');
-        });
     });
 
 

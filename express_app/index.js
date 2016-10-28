@@ -61,32 +61,32 @@ apiRoutes.get('/authenticate', function (req, res) {
     });
 });
 
-var chatNsp = io.of('/chat');
+//var chatNsp = io.of('/chat');
 var notifyNsp = io.of('/notify');
 
-chatNsp
+notifyNsp
     .on('connection', ioJwt.authorize({
         secret: jwtSecret,
         timeout: 15000 //15 seconds to send the authentication message
     }))
     .on('authenticated', function (socket) {
         var id = socket.id;//投稿者(接続者)のid
-        var myName = socket.decoded_token.user_name;
-        var personalMessage = "あなたは、"+myName+"さんとして入室しました。";
-        chatNsp.to(id).emit('server_to_client', {value : personalMessage});
+        //var myName = socket.decoded_token.user_name;
+        //var personalMessage = "あなたは、"+myName+"さんとして入室しました。";
+        //notifyNsp.to(id).emit('server_to_client', {value : personalMessage});
 
-        var roomName = 'some_room';
+        var roomName = 'personal';
         socket.join(roomName);
 
-        var channelName = chatNsp.name +':'+ roomName + ':user_' + socket.decoded_token.user_id;
+        var channelName = notifyNsp.name +':'+ roomName + ':user_' + socket.decoded_token.user_id;
         sub.subscribe(channelName);
 
-        socket.on('disconnect',function(){
-            socket.to(roomName).broadcast.emit('receive', myName+'さんがログアウトしました。');
-        });
+        //socket.on('disconnect',function(){
+        //    socket.to(roomName).broadcast.emit('receive', myName+'さんがログアウトしました。');
+        //});
 
         //send message except self
-        socket.to(roomName).broadcast.emit('broadcast_message',myName+'さんがログインしました!!!!');
+        //socket.to(roomName).broadcast.emit('broadcast_message',myName+'さんがログインしました!!!!');
 
         //send message to all (include self)
         //socket.emit('greeting', {message: 'Hi!'}, function (data) {
@@ -100,14 +100,8 @@ chatNsp
             if (channel == channelName) {
                 var text = String.fromCharCode.apply("", new Uint16Array(message));
                 //socket.emit('my_notify', text);//createClientを別にしたら無限ループにならなかった...?
-                chatNsp.to(id).emit('my_notify',true);
+                notifyNsp.to(id).emit('my_notify',text);
             }
-
-        });
-
-        socket.on('msg', function (data) {
-            pub.publish(channelName,data);
-            //chatNsp.to(roomName).emit('receive', data);
         });
 });
 
