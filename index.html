@@ -72,8 +72,11 @@
            console.log(data);
         });
 
-        socket.on('/chat:some_room:user_123',function(data){
-            $('#n').append('<li>'+data+'</li>');
+        socket.on('my_notify',function(data){
+            var d = JSON.parse(data);
+            console.log(d);
+
+            $('#n').append('<li>'+d+'</li>');
         });
 
         socket.on('server_to_client',function(data){
