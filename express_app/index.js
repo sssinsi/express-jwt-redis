@@ -9,10 +9,10 @@ var ioJwt = require('socketio-jwt');
 var redisHost = process.env.DB_PORT_6379_TCP_ADDR;
 var redisPort = process.env.DB_PORT_6379_TCP_PORT;
 
-var redis = require('redis').createClient;
+var redis = require('redis');
 //redis.createClient({host:redisHost,port:redisPort});
-var pub = redis( redisPort,redisHost);//master
-var sub = redis( redisPort,redisHost,{return_buffers:true});//slave
+var pub = redis.createClient( redisPort,redisHost);//master
+var sub = redis.createClient( redisPort,redisHost,{return_buffers:true});//slave
 
 
 
@@ -46,7 +46,12 @@ app.get('/', function (req, res) {
 //create token
 apiRoutes.get('/authenticate', function (req, res) {
     //sample user
-    var token = jwt.sign({user_id: 123}, jwtSecret, {
+    var now = new Date();
+    var user_name = "user123" + now.getFullYear() + "/" + (now.getMonth() + 1) +
+        "/" + now.getDate() + " " + now.getHours() + ":" +
+        now.getMinutes() + ":" + now.getSeconds();
+
+    var token = jwt.sign({user_id: 123,user_name: user_name}, jwtSecret, {
         expiresIn: '24h'
     });
 
@@ -66,34 +71,55 @@ chatNsp
     }))
     .on('authenticated', function (socket) {
         console.log('hello!', socket.decoded_token.user_id);
+        var id = socket.id;//投稿者(接続者)のid
+        //io.to(id).emit('server_to_client', {value : personalMessage})
+        var myName = socket.decoded_token.user_name;
+        var personalMessage = "あなたは、"+myName+"さんとして入室しました。";
+        chatNsp.to(id).emit('server_to_client', {value : personalMessage});
 
         var roomName = 'some_room';
         socket.join(roomName);
+        var channelName = 'namespace:' +chatNsp.name + ':room:'+ roomName + ':count:user_' + socket.decoded_token.user_id;
+        sub.subscribe(channelName);
+
         socket.on('disconnect',function(){
-            chatNsp.to(roomName).emit('receive', 'user disconnected!');
+            chatNsp.to(roomName).broadcast.emit('receive', myName+'さんがログアウトしました。');
         });
 
+        //send message except self
+        socket.to(roomName).broadcast.emit('broadcast_message',myName+'さんがログインしました!!!!');
+
+        //send message to all (include self)
+        //socket.emit('greeting', {message: 'Hi!'}, function (data) {
+        //});
+
         sub.on("subscribe",function(channel,count){
-            //console.log('subscribed!!!');
             console.log("Subscribed to " + channel + ". Now subscribed to " + count + " channel(s).");
-            //io.sockets.emit('my_subscribe',count);
         });
 
         sub.on('message',function(channel, message){
-            console.log("Message from channel " + channel + ": " + message);
+            //pub.publishの時も実行される
+            //emitで実行される
+            //sendでも実行される
+            //io.emit(channelName, message);//無限ループ
+            if (channel == channelName) {
+                var text = String.fromCharCode.apply("", new Uint16Array(message));
+                socket.emit(channelName, text);//createClientを別にしたら無限ループにならなかった...?
+            }
+
         });
 
-        sub.subscribe('channel1');
 
-        pub.publish(socket.decoded_token.user_id + '.news.sample','channel custom publish message.');
 
-        socket.emit('greeting', {message: 'Hi!'}, function (data) {
-        });
+
+
+
 
         socket.on('msg', function (data) {
-            socket.to(roomName).emit('receive',data);
-//            io.sockets.emit('receive', data);
-            pub.publish('channel1','publish message')
+
+            pub.publish(channelName,data);
+            //pub.publish(chatNsp.name + "#" + roomName + "#" + socket.decoded_token.user_id,'custom publish message');
+            //chatNsp.to(roomName).emit('receive', data);
             console.log('receive:' + data);
         });
         //ioe.emit('broadcast','this is broadcasting');
