@@ -14,10 +14,6 @@ var redis = require('redis');
 var pub = redis.createClient( redisPort,redisHost);//master
 var sub = redis.createClient( redisPort,redisHost,{return_buffers:true});//slave
 
-
-
-//var ioe = require('socket.io-emitter')({host:process.env.DB_PORT_6379_TCP_ADDR, port:process.env.DB_PORT_6379_TCP_PORT});
-//io.adapter(ioRedis({host:redisHost, port:redisPort}));
 io.adapter(ioRedis({pubClient:pub,subClient:sub}));
 
 var app = express();
@@ -70,40 +66,22 @@ notifyNsp
         timeout: 15000 //15 seconds to send the authentication message
     }))
     .on('authenticated', function (socket) {
-        var id = socket.id;//投稿者(接続者)のid
-        //var myName = socket.decoded_token.user_name;
-        //var personalMessage = "あなたは、"+myName+"さんとして入室しました。";
-        //notifyNsp.to(id).emit('server_to_client', {value : personalMessage});
-
+        var id = socket.id;//接続者のid
         var roomName = 'personal';
         socket.join(roomName);
 
-        var channelName = notifyNsp.name +':'+ roomName + ':user_' + socket.decoded_token.user_id;
+        var channelName = notifyNsp.name + ':' + roomName + ':user:' + socket.decoded_token.user_id;// /notify:personal:user:123
+        var unseenCountKey = 'user:' + socket.decoded_token.user_id + ':notify:unseen-count';//user:123:notify:unseen-count
         sub.subscribe(channelName);
 
-        //socket.on('disconnect',function(){
-        //    socket.to(roomName).broadcast.emit('receive', myName+'さんがログアウトしました。');
-        //});
-
-        //send message except self
-        //socket.to(roomName).broadcast.emit('broadcast_message',myName+'さんがログインしました!!!!');
-
-        //send message to all (include self)
-        //socket.emit('greeting', {message: 'Hi!'}, function (data) {
-        //});
-
-        //sub.on("subscribe",function(channel,count){
-        //    console.log("Subscribed to " + channel + ". Now subscribed to " + count + " channel(s).");
-        //});
-
-        sub.on('message',function(channel, message){
+        sub.on('message', function (channel, message) {
             if (channel == channelName) {
-                var text = String.fromCharCode.apply("", new Uint16Array(message));
-                //socket.emit('my_notify', text);//createClientを別にしたら無限ループにならなかった...?
-                notifyNsp.to(id).emit('my_notify',text);
+                pub.get(unseenCountKey, function (err, count) {
+                    notifyNsp.to(id).emit('unseen_count', count);
+                });
             }
         });
-});
+    });
 
 //Authentification Filter
 apiRoutes.use(function (req, res, next) {

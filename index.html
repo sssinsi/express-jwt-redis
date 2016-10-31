@@ -1,10 +1,12 @@
 <!doctype html>
 <html>
 <head>
+    <meta charset="UTF-8">
     <title>1</title>
 
 </head>
 <body>
+<div id="uc"></div>
 <ul id="n"></ul>
 <span id="r"></span>
 
@@ -13,7 +15,7 @@
 <script>
 
     $(function(){
-        var token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxMjMsInVzZXJfbmFtZSI6InVzZXIxMjMyMDE2LzEwLzI3IDEyOjQ5OjUwIiwiaWF0IjoxNDc3NTcyNTkwLCJleHAiOjE0Nzc2NTg5OTB9.3nrbPhon7wdfDU7Np4YMWY1QiETudAajlO7MS6Owyko';
+        var token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxMjMsInVzZXJfbmFtZSI6InVzZXIxMjMyMDE2LzEwLzMxIDM6NTM6MjkiLCJpYXQiOjE0Nzc4ODYwMDksImV4cCI6MTQ3Nzk3MjQwOX0.yZJRlKnGEXJIYb3TxL78FtsQhMJzn0K_oN1YeVrwWx0';
         var socket = io('http://localhost:9000/notify');
 
         socket
@@ -26,10 +28,13 @@
                 });
 
         socket.on('my_notify',function(data){
-            var d = JSON.parse(data);
-            $('#n').append('<li>'+d+'</li>');
+//            var d = JSON.parse(data);
+            $('#n').append('<li>'+data+'</li>');
         });
 
+        socket.on('unseen_count',function(count){
+            $('#uc').text(count);
+        });
     });
 
 
